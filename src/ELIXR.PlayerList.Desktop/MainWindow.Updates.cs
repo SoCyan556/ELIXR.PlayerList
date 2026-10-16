@@ -26,7 +26,7 @@ public partial class MainWindow
             _updatePrompt = _availableUpdate is not null;
             _updateMessage = _availableUpdate is null ? "You're up to date." : $"Version {_availableUpdate.Version} is available.";
         }
-        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or IOException or JsonException or InvalidOperationException or KeyNotFoundException or FormatException or OperationCanceledException)
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or IOException or InvalidDataException or JsonException or InvalidOperationException or KeyNotFoundException or FormatException or OperationCanceledException)
         { _updateMessage = "Couldn't check for updates. Please try again later."; }
         finally { _updateBusy = false; PushState(); }
     }
@@ -44,7 +44,7 @@ public partial class MainWindow
             Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
             Close(); // The installer presents its normal confirmation UI; it is never run silently.
         }
-        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or IOException or UnauthorizedAccessException or OperationCanceledException or System.ComponentModel.Win32Exception)
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or OperationCanceledException or System.ComponentModel.Win32Exception or System.Security.Cryptography.CryptographicException)
         { _updateMessage = "The update couldn't be verified or started. Nothing was installed. Try again later."; }
         finally { _updateBusy = false; PushState(); }
     }
