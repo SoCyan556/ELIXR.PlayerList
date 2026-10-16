@@ -30,7 +30,7 @@ const label = m => ({totp:'Authenticator code',emailOtp:'Email code',otp:'Recove
 <AnimatePresence><motion.p v-if="state.auth.message" :key="state.auth.message" class="login-error" role="alert" :initial="{x:reducedMotion?0:-5,opacity:0}" :animate="{x:0,opacity:1}" :exit="{opacity:0}" :transition="spring">{{ state.auth.message }}</motion.p></AnimatePresence>
 <motion.button class="primary-button" type="submit" :disabled="state.auth.busy||!state.host" :while-press="reducedMotion?{}:{scale:.97}" :while-hover="reducedMotion?{}:{y:-1}" :transition="spring">{{ state.auth.busy?'Connecting…':verification?'Verify':'Sign in' }}</motion.button>
 <button v-if="verification" type="button" class="text-button" :disabled="state.auth.busy" @click="send('auth.logout')">Back to sign in</button><button v-else-if="state.auth.status==='Failed'" type="button" class="text-button" :disabled="state.auth.busy" @click="send('auth.restore')">Retry saved session</button>
-<p class="login-privacy">{{ verification?'Verification is handled directly by VRChat.':'Your password is sent only to VRChat.' }}<br v-if="!verification"/><span v-if="!verification">Remember me protects your session with Windows.</span></p>
+<p class="login-privacy">{{ verification?'Verification is handled directly by VRChat.':'Your password is sent only to VRChat.' }}<br v-if="!verification"/><span v-if="!verification">Remember me protects your session with Windows. Your VRChat ID is recorded once by ELIXR to count unique tool users; no password, session cookies, or player rosters are shared.</span></p>
 </form>
 </motion.section></AnimatePresence>
 <span class="login-version">v{{state.updates.currentVersion}}</span>

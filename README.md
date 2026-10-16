@@ -10,6 +10,8 @@ ELIXR builds are currently **unsigned**: Windows may display an unknown-publishe
 
 ## Status
 
+Starting with 0.1.2, the tool registers your own VRChat ID once after successful sign-in so ELIXR's private admin panel can count lifetime unique Player List users. No passwords, session cookies, player rosters, or ongoing activity are sent to ELIXR. See [privacy details](PRIVACY.md). Earlier usage cannot be reconstructed; this client-reported metric is not proof of account ownership.
+
 The reference-driven UI overhaul, exact preview/capture commands, changed files, screenshots and verification results are documented in [UI_OVERHAUL.md](docs/UI_OVERHAUL.md). Development preview is available only through a Debug build with UiPreview=true and the --ui-preview flag.
 
 Implemented: native Windows dark title bar, neutral charcoal UI, inset spring-animated navigation, four sections, player table/search/profile inspector, full/compact tag badges, persistent settings, and VRChat login with verification, Windows-encrypted remembered sessions, startup restoration and logout. See [motion and login notes](docs/MOTION_AND_LOGIN.md).

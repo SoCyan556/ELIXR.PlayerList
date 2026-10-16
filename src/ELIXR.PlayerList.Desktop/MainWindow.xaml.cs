@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private DesktopOverlayWindow? _desktopOverlay;
     private Rect? _desktopOverlayPlacement;
     private readonly string? _imageCacheDirectory;
+    internal ELIXR.PlayerList.Infrastructure.Services.UsageRegistrationService? UsageRegistration { get; init; }
 
     public MainWindow(IPlayerListService players, ISettingsService settings, IAuthenticationService authentication, IOverlayService? overlay = null, ELIXR.PlayerList.Infrastructure.Services.GitHubTagService? tagFeeds = null, string? imageCacheDirectory = null, ELIXR.PlayerList.Infrastructure.Services.GitHubUpdateService? updates = null)
     {
@@ -356,6 +357,8 @@ public partial class MainWindow : Window
         try
         {
             _authResult = await action(_authCancellation.Token);
+            if (_authResult.Status == AuthenticationStatus.SignedIn && !IsUiPreview && _authentication.CurrentUser is { } signedInUser && UsageRegistration is { } registration)
+                _ = registration.RegisterAsync(signedInUser.VrchatUserId);
             if (_authResult.Status == AuthenticationStatus.SignedIn && !_playerStarted)
             {
                 try { await _players.StartAsync(); _playerStarted = true; }
