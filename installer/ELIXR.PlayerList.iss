@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.1.1"
 #endif
 #define RepoRoot AddBackslash(SourcePath) + ".."
 
@@ -37,7 +37,7 @@ Name: desktopicon; Description: "Create a desktop shortcut"; GroupDescription: "
 
 [Files]
 Source: "{#RepoRoot}\artifacts\publish-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#RepoRoot}\artifacts\dependencies\MicrosoftEdgeWebview2Setup.exe"; Flags: dontcopy
+Source: "{#RepoRoot}\artifacts\dependencies\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; Flags: dontcopy
 
 [Icons]
 Name: "{group}\ELIXR Player List"; Filename: "{app}\ELIXR.PlayerList.exe"
@@ -59,12 +59,16 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var ExitCode: Integer;
 begin
   Result := '';
-  if not HasWebView2 then begin
-    ExtractTemporaryFile('MicrosoftEdgeWebview2Setup.exe');
-    if not Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe'), '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
-      Result := 'Could not start Microsoft WebView2 setup. Install the WebView2 Evergreen Runtime from Microsoft and try again.'
-    else if not HasWebView2 then
-      Result := 'Microsoft WebView2 could not be installed. Check your internet connection, install the WebView2 Evergreen Runtime from Microsoft, and retry.';
+  // Run the embedded, complete payload on installs/upgrades. This also gives
+  // Microsoft setup a chance to service an existing runtime instead of trusting
+  // the presence of a registry key as proof that the runtime is healthy.
+  ExtractTemporaryFile('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+  if not Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe'), '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
+    Result := 'Could not start the bundled Microsoft WebView2 installer. Restart Windows and run ELIXR setup again.'
+  else begin
+    if ExitCode = 3010 then NeedsRestart := True;
+    if not HasWebView2 then
+      Result := 'The bundled WebView2 installation did not complete (code ' + IntToStr(ExitCode) + '). Restart Windows and retry ELIXR setup. No separate runtime download is required.';
   end;
 end;
 

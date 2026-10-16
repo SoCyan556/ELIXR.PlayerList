@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private readonly ELIXR.PlayerList.Infrastructure.Services.GitHubTagService? _tagFeeds;
     private readonly SemaphoreSlim _settingsLock = new(1, 1);
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
-    private bool _ready, _closing, _pushQueued;
+    private bool _ready, _closing, _pushQueued, _startupStarted;
     private readonly IAuthenticationService _authentication;
     private AuthenticationResult _authResult = new(AuthenticationStatus.SignedOut);
     private readonly SemaphoreSlim _authLock = new(1, 1);
@@ -67,15 +67,35 @@ public partial class MainWindow : Window
 
     private async void InitializeAsync(object sender, RoutedEventArgs e)
     {
+        if (_startupStarted || _closing) return;
+        _startupStarted = true;
+        var stage = "bundled-frontend";
+        string? runtimeVersion = null;
         try
         {
             var content = Path.Combine(AppContext.BaseDirectory, "wwwroot");
             if (!File.Exists(Path.Combine(content, "index.html"))) throw new FileNotFoundException("Build the Vue frontend before running the desktop host.");
             var userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ELIXR", "PlayerList", "WebView2");
+            var startupArgs = Environment.GetCommandLineArgs();
+            var smokeIndex = Array.IndexOf(startupArgs, "--smoke-test");
+            if (smokeIndex >= 0 && smokeIndex + 1 < startupArgs.Length) userData = Path.GetFullPath(startupArgs[smokeIndex + 1]) + ".WebView2";
+#if DEBUG
+            else if (IsUiPreview) userData += "-Preview";
+#endif
+            stage = "runtime-discovery";
+            StartupDiagnostics.SmokeCheckpoint(stage);
+            runtimeVersion = CoreWebView2Environment.GetAvailableBrowserVersionString();
+            stage = "browser-environment";
+            StartupDiagnostics.SmokeCheckpoint(stage);
             var environment = await CoreWebView2Environment.CreateAsync(null, userData);
             _webEnvironment = environment;
             if (_closing) return;
+            stage = "browser-control";
+            StartupDiagnostics.SmokeCheckpoint(stage);
             await Browser.EnsureCoreWebView2Async(environment);
+            if (_closing) return;
+            stage = "browser-configuration";
+            StartupDiagnostics.SmokeCheckpoint(stage);
             var core = Browser.CoreWebView2;
             core.Settings.AreDefaultContextMenusEnabled = false;
             core.Settings.AreHostObjectsAllowed = false;
@@ -97,7 +117,9 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            MessageBox.Show("The desktop interface could not start. Install the Microsoft Edge WebView2 Runtime and rebuild the frontend.\n\n" + ex.Message, "ELIXR Player List", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (_closing) return;
+            var details = StartupDiagnostics.Write(ex, stage, runtimeVersion);
+            MessageBox.Show(ELIXR.PlayerList.Core.Models.DesktopStartupFailure.Describe(ex.HResult, stage) + "\n\n" + details, "ELIXR Player List", MessageBoxButton.OK, MessageBoxImage.Error);
             Close();
         }
     }

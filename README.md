@@ -4,7 +4,7 @@ A standalone Windows VRChat companion. The desktop frontend uses Vue 3 + Vite in
 
 ## Download
 
-Get the Windows x64 installer or portable ZIP from [GitHub Releases](https://github.com/SoCyan556/ELIXR.PlayerList/releases/latest). Windows 10 2004 or newer / Windows 11 is required. The installer runs per-user without administrator rights, includes .NET, and installs Microsoft's WebView2 Evergreen Runtime if missing (internet required for that prerequisite). The portable ZIP needs an existing WebView2 Runtime. Neither needs Node.js or a separate .NET installation.
+Get the Windows x64 installer or portable ZIP from [GitHub Releases](https://github.com/SoCyan556/ELIXR.PlayerList/releases/latest). Windows 10 2004 or newer / Windows 11 is required. The installer runs per-user without administrator rights and bundles .NET, all application/frontend files, and Microsoft's complete x64 WebView2 Evergreen offline installer. No internet or separate package download is needed to install the app or its prerequisite. Internet is still needed for VRChat login, community feeds and updates. The portable ZIP needs an existing WebView2 Runtime; use the full installer if unsure. Neither needs Node.js or a separate .NET installation.
 
 ELIXR builds are currently **unsigned**: Windows may display an unknown-publisher/SmartScreen warning. Download only from the official repository and verify SHA256SUMS.txt if needed. The first public release is an early version; known limitations are listed below.
 
@@ -41,7 +41,7 @@ Use Windows 10/11, .NET SDK 10 (tested; output targets .NET 8), Node.js 22.12+ (
     dotnet run --project src/ELIXR.PlayerList.Desktop
     dotnet publish src/ELIXR.PlayerList.Desktop -c Release -o artifacts/desktop --no-self-contained
 
-The build installs locked frontend dependencies on first use and builds Vite automatically. Build and publish outputs include the bundled frontend under wwwroot. Distribute the whole published folder. End users need the .NET 8 Desktop Runtime and WebView2 Evergreen Runtime; they do not need Node/npm.
+The build installs locked frontend dependencies on first use and builds Vite automatically. Build and publish outputs include the bundled frontend under wwwroot. Distribute the whole published folder. The release script publishes self-contained .NET and embeds the full offline WebView2 installer. A manual framework-dependent `dotnet publish --no-self-contained` build still needs a separately installed .NET 8 Desktop Runtime and WebView2; do not distribute that build as the complete installer.
 
 For frontend development, run npm ci then npm run dev in frontend/. Browser preview is marked and has no native services. Build the desktop project to exercise the production bridge. Use npm ci after package-lock.json changes.
 
@@ -56,6 +56,8 @@ Debug-only --diagnose-images followed by an absolute JSON output path checks up 
 ## Configuration and privacy
 
 Settings remain at %LOCALAPPDATA%/ELIXR/PlayerList/settings.json. Remembered cookies are stored in session.bin protected by Windows DPAPI for the current user. WebView2 runtime data stays in that directory's WebView2 subfolder. The appsettings.example.json file documents future backend configuration; VRChat authentication uses a fixed HTTPS API endpoint in the native service.
+
+If startup fails, `startup-error.json` in that same folder records only the startup stage, error type/code, runtime/app versions, architecture and time. It is overwritten on the next failure and contains no credentials, browser state or profile data. A runtime disconnect is reported separately from a genuinely missing runtime or incomplete application files.
 
 Required for future integrations: production ELIXR endpoints and schemas, permission claims, a server-side verified VRChat identity contract, GitHub repository/asset identity, signing policy, and a support address for VRChat's User-Agent.
 

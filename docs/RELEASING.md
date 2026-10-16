@@ -7,9 +7,9 @@ required to build. Do not place credentials in the project tree.
 
 1. Update the version in the desktop project and frontend package metadata;
    keep release tags in `vMAJOR.MINOR.PATCH` form (stable releases only).
-2. Run `./scripts/Build-Release.ps1 -Version 0.1.0`. It runs tests, publishes
+2. Run `./scripts/Build-Release.ps1 -Version 0.1.1`. It runs tests, publishes
    self-contained .NET for win-x64, collects runtime dependency license texts,
-   downloads and validates Microsoft's signed WebView2 bootstrapper, compiles
+   downloads and validates Microsoft's signed full x64 offline WebView2 installer, compiles
    the per-user installer, and creates the portable ZIP. Inno Setup can be
    selected with `-IsccPath`. The script refuses to reuse the existing
    `artifacts/publish-win-x64` folder: move a previous build aside first so stale
@@ -21,15 +21,15 @@ required to build. Do not place credentials in the project tree.
 4. Review `git status` and `git diff --cached`, and commit all intended source
    changes. Never commit `artifacts`, `bin`, `obj`, `node_modules`, local settings,
    sessions, caches, screenshots with real users, secrets or databases.
-5. Run `./scripts/Package-Source.ps1 -Version 0.1.0`. This creates an archive from
+5. Run `./scripts/Package-Source.ps1 -Version 0.1.1`. This creates an archive from
    **Git HEAD**, not a recursive working-folder ZIP, and SHA256SUMS.txt covering
    the installer, portable ZIP and source ZIP. It refuses dirty/untracked source.
-6. Push the commit, tag it `v0.1.0`, and create a normal stable GitHub release:
+6. Push the commit, tag it `v0.1.1`, and create a normal stable GitHub release:
 
    ```powershell
-   git tag v0.1.0
+   git tag v0.1.1
    git push origin main --tags
-   gh release create v0.1.0 artifacts/release/* --title "ELIXR Player List 0.1.0" --notes-file docs/RELEASE_NOTES_0.1.0.md --verify-tag
+   gh release create v0.1.1 artifacts/release/ELIXR-PlayerList-0.1.1-* artifacts/release/SHA256SUMS.txt --title "ELIXR Player List 0.1.1" --notes-file docs/RELEASE_NOTES_0.1.1.md --verify-tag
    ```
 
 The update checker expects exactly:
@@ -51,6 +51,11 @@ and downloading releases do not require granting that extra permission.
 
 Installer details: fixed upgrade AppId, per-user LocalAppData/Programs location,
 optional desktop shortcut, Start menu entry, uninstall support, .NET included,
-Microsoft's WebView2 bootstrapper only runs if the runtime is absent. A missing
-runtime plus no internet is an installation error, not a broken first launch.
+Microsoft's complete x64 Evergreen offline installer is embedded and run during
+setup, including upgrades. It does not download its runtime payload at install
+time. Runtime setup can service an existing installation; a newer runtime is
+kept. Build time still requires internet to obtain this Microsoft-signed payload.
+The payload must be at least 50 MiB and pass Microsoft Authenticode validation;
+the 1-2 MiB online bootstrapper must never replace it. The portable ZIP does not
+install prerequisites: recommend the full installer for machines without WebView2.
 No Windows startup task or telemetry is installed. Uninstall preserves user data.

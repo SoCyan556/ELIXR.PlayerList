@@ -11,7 +11,7 @@ Vite and its development tooling are not required on end-user computers.
 The release build collects dependency license/copyright texts into the
 `ThirdPartyLicenses` folder beside the application. Self-contained .NET runtime
 license and third-party notice files are also distributed. The bundled
-Microsoft WebView2 bootstrapper and separately installed Evergreen Runtime are
+Microsoft WebView2 full offline installer and its installed Evergreen Runtime are
 Microsoft software under Microsoft's terms, not ELIXR's MIT license.
 
 FewTags, ETags and etags-groups are external community data sources downloaded

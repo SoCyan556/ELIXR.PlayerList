@@ -1,5 +1,5 @@
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.1.0',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.1.1',
     [string]$IsccPath,
     [switch]$SkipTests
 )
@@ -31,13 +31,15 @@ try {
     & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1') -Destination (Join-Path $publish 'ThirdPartyLicenses')
     $dependencies = Join-Path $releaseRoot 'artifacts\dependencies'
     New-Item -ItemType Directory -Path $dependencies -Force | Out-Null
-    $bootstrapper = Join-Path $dependencies 'MicrosoftEdgeWebview2Setup.exe'
-    if (-not (Test-Path -LiteralPath $bootstrapper)) {
-        Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $bootstrapper
+    $runtimeInstaller = Join-Path $dependencies 'MicrosoftEdgeWebView2RuntimeInstallerX64.exe'
+    if (-not (Test-Path -LiteralPath $runtimeInstaller)) {
+        # Microsoft's full x64 Evergreen payload, NOT the small online bootstrapper.
+        Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124701' -OutFile $runtimeInstaller
     }
-    $signature = Get-AuthenticodeSignature -LiteralPath $bootstrapper
+    if ((Get-Item -LiteralPath $runtimeInstaller).Length -lt 50MB) { throw 'Expected the full offline WebView2 installer, not a bootstrapper.' }
+    $signature = Get-AuthenticodeSignature -LiteralPath $runtimeInstaller
     if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
-        throw 'The WebView2 bootstrapper must have a valid Microsoft Authenticode signature.'
+        throw 'The offline WebView2 installer must have a valid Microsoft Authenticode signature.'
     }
     & $IsccPath /Q "/DAppVersion=$Version" installer/ELIXR.PlayerList.iss
     if ($LASTEXITCODE) { throw 'Installer build failed.' }
