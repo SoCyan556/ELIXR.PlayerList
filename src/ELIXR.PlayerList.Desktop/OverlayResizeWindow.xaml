@@ -1,0 +1,47 @@
+<Window x:Class="ELIXR.PlayerList.Desktop.OverlayResizeWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="Resize ELIXR overlay" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+ ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="Manual"
+ PreviewKeyDown="OnKeyDown">
+ <Window.Resources>
+  <SolidColorBrush x:Key="Pink" Color="#EF85B7"/>
+  <Style TargetType="Button">
+   <Setter Property="Foreground" Value="#EEE6F1"/><Setter Property="Background" Value="#332638"/>
+   <Setter Property="BorderBrush" Value="#59425E"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Padding" Value="16,10"/><Setter Property="Cursor" Value="Hand"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="7"><ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+    <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Opacity" Value=".78"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value=".4"/></Trigger></ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="Slider">
+   <Setter Property="Height" Value="26"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
+    <Grid><Track x:Name="PART_Track"><Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="4" CornerRadius="2" Background="#EF85B7"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton><Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="4" CornerRadius="2" Background="#49354F"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton><Track.Thumb><Thumb Width="16" Height="20"><Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Width="13" Height="13" Fill="#EF85B7" Stroke="#FFE7F5" StrokeThickness="1"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb></Track></Grid>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </Window.Resources>
+ <Canvas x:Name="Stage" Background="{x:Null}">
+  <Path x:Name="Shade" Fill="#B8000000"/>
+  <Border x:Name="PreviewShield" Background="#01000000" CornerRadius="17"/>
+  <Border x:Name="Frame" BorderBrush="#EF85B7" BorderThickness="2" CornerRadius="17" IsHitTestVisible="False"/>
+  <Canvas x:Name="Handles"/>
+  <Border x:Name="Panel" Width="340" Padding="22" Background="#211925" BorderBrush="#70506D" BorderThickness="1" CornerRadius="15" TextElement.Foreground="#F5EDF6" TextElement.FontFamily="Segoe UI">
+   <Border.RenderTransform><TranslateTransform x:Name="PanelSlide"/></Border.RenderTransform>
+   <StackPanel>
+    <TextBlock Text="OVERLAY EDITOR" FontSize="10" Foreground="#EF85B7" FontWeight="SemiBold"/>
+    <TextBlock Text="Make it fit your screen" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,8"/>
+    <TextBlock Text="Drag the pink handles to resize, or the grip to move. Changes preview live." TextWrapping="Wrap" Foreground="#B9A7BF" FontSize="12" LineHeight="19" Margin="0,0,0,20"/>
+    <DockPanel><TextBlock Text="Width"/><TextBlock x:Name="WidthLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="#EBA1C9"/></DockPanel>
+    <Slider x:Name="WidthSlider" Minimum="240" Maximum="1920" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SizeChangedBySlider" Margin="0,5,0,12"/>
+    <DockPanel><TextBlock Text="Height"/><TextBlock x:Name="HeightLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="#EBA1C9"/></DockPanel>
+    <Slider x:Name="HeightSlider" Minimum="240" Maximum="1080" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SizeChangedBySlider" Margin="0,5,0,15"/>
+    <TextBlock x:Name="PositionLabel" Foreground="#9E8CA6" FontSize="11" Margin="0,0,0,14"/>
+    <Button Content="Reset to default size" Click="ResetSize" Background="#2B202F" Padding="10,8"/>
+    <TextBlock x:Name="ErrorLabel" Foreground="#FFB3C5" TextWrapping="Wrap" Margin="0,8,0,0"/>
+    <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions><Button x:Name="CancelButton" Content="Cancel" Click="CancelClick"/><Button x:Name="SaveButton" Grid.Column="2" Content="Save layout" Click="SaveClick" Background="#E783B4" Foreground="#211321" BorderBrush="#F1A3CC" FontWeight="SemiBold"/></Grid>
+    <TextBlock Text="Enter to save · Escape to cancel" HorizontalAlignment="Center" Foreground="#9E8CA6" FontSize="10" Margin="0,12,0,0"/>
+   </StackPanel>
+  </Border>
+ </Canvas>
+</Window>

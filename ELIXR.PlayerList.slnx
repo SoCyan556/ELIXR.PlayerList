@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ELIXR.PlayerList.Core/ELIXR.PlayerList.Core.csproj" />
+    <Project Path="src/ELIXR.PlayerList.Desktop/ELIXR.PlayerList.Desktop.csproj" />
+    <Project Path="src/ELIXR.PlayerList.Infrastructure/ELIXR.PlayerList.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ELIXR.PlayerList.Core.Tests/ELIXR.PlayerList.Core.Tests.csproj" />
+  </Folder>
+</Solution>

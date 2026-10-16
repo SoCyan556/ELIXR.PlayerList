@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <AssemblyName>ELIXR.PlayerList</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ELIXR.PlayerList.Core\ELIXR.PlayerList.Core.csproj" />
+    <ProjectReference Include="..\ELIXR.PlayerList.Infrastructure\ELIXR.PlayerList.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <Resource Include="Assets/icon.ico" />
+  </ItemGroup>
+  <Target Name="BuildVueFrontend" BeforeTargets="PrepareForBuild" Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipFrontendBuild)' != 'true'">
+    <PropertyGroup>
+      <VueBuildMode>production</VueBuildMode>
+      <VueBuildMode Condition="'$(Configuration)' == 'Debug' and '$(UiPreview)' == 'true'">preview</VueBuildMode>
+    </PropertyGroup>
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)\..\..\frontend" Command="npm ci --no-audit --no-fund" Condition="!Exists('$(MSBuildProjectDirectory)\..\..\frontend\node_modules\vite\package.json')" />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)\..\..\frontend" Command="npm run build -- --mode $(VueBuildMode)" />
+  </Target>
+  <Target Name="CopyVueFrontend" AfterTargets="Build" DependsOnTargets="BuildVueFrontend">
+    <ItemGroup>
+      <VueAssets Include="$(MSBuildProjectDirectory)/../../frontend/dist/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VueAssets)" DestinationFiles="@(VueAssets->'$(TargetDir)wwwroot/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="PublishVueFrontend" AfterTargets="ComputeFilesToPublish" DependsOnTargets="BuildVueFrontend">
+    <ItemGroup>
+      <VuePublishAssets Include="$(MSBuildProjectDirectory)/../../frontend/dist/**/*" />
+      <ResolvedFileToPublish Include="@(VuePublishAssets)">
+        <RelativePath>wwwroot/%(VuePublishAssets.RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+</Project>
