@@ -1,5 +1,7 @@
 # Privacy design
 
+The Search tab sends the display name you submit directly to VRChat using your existing native authenticated session. Checking a search result uses the same public tag catalogs, VRChat public-group lookup, and bounded image cache as the instance roster. Search text and results are held only in memory and cleared on leaving Search or signing out; no search history is saved or sent to ELIXR/GitHub. Only the selected result triggers group and portrait lookups. Search results never enter the instance or overlay roster. VRChat may retain its own request logs. Community feeds and private memberships may be incomplete; absence of a matching tag is not a safety guarantee.
+
 The optional startup/manual update check contacts the public GitHub releases
 API for SoCyan556/ELIXR.PlayerList. GitHub receives ordinary network metadata
 (such as IP address), never VRChat credentials, account IDs or player lists.

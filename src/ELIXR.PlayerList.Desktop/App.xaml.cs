@@ -54,7 +54,7 @@ public partial class App : Application
         var images = new VrchatProfileImageService(_http, _feedsHttp, () => authentication.CurrentUser?.VrchatUserId);
         var players = new ProfileImagePlayerListService(taggedPlayers, images, () => authentication.CurrentUser is not null);
         StartupDiagnostics.SmokeCheckpoint("native-window");
-        MainWindow = new MainWindow(players, settings, authentication, tagFeeds: tags, imageCacheDirectory: images.CacheDirectory, updates: new GitHubUpdateService(_feedsHttp)) { UsageRegistration = settingsPath is null ? new UsageRegistrationService(_feedsHttp) : null };
+        MainWindow = new MainWindow(players, settings, authentication, tagFeeds: tags, imageCacheDirectory: images.CacheDirectory, updates: new GitHubUpdateService(_feedsHttp)) { UsageRegistration = settingsPath is null ? new UsageRegistrationService(_feedsHttp) : null, UserSearch = new VrchatUserSearchService(_http, () => authentication.CurrentUser?.VrchatUserId), SearchImages = images };
         MainWindow.Show();
     }
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] private static extern IntPtr FindWindow(string? className, string windowName);

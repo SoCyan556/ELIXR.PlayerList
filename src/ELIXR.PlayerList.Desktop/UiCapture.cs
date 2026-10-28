@@ -59,6 +59,31 @@ public partial class MainWindow
             encoder.Save(file);
         }
         const string clickCompact = "document.querySelector('.tag-controls button[aria-label=\"Compact Tags\"]').click()";
+        if (args.Contains("--search-only"))
+        {
+            await Script("window.__elixrPreview.reset();[...document.querySelectorAll('nav button')].find(b=>b.textContent.trim()==='Search').click()");
+            await Check("Search is a fifth navigation section", "document.querySelectorAll('nav button').length===5&&!!document.querySelector('.user-search-form')");
+            await Check("Search is disabled in fictional preview", "document.querySelector('.user-search-form button').disabled");
+            await Capture("search-initial");
+            const string fixture = "{vrchatUserId:'usr_11111111-2222-3333-4444-555555555555',displayName:'Search fixture · fictional',tags:[]}";
+            await Script("const input=document.querySelector('#vrchat-user-query');input.value='fixture';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('.user-search-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
+            await Check("Search shows a loading state", "document.querySelector('[aria-label=\"VRChat search results\"]').getAttribute('aria-busy')==='true'");
+            await Script("window.dispatchEvent(new CustomEvent('elixr:user-search',{detail:{type:'users.results',requestId:window.__elixrSearchRequest,users:[" + fixture + "],hasMore:true}}))");
+            await Check("Search results are separate from roster", "document.querySelectorAll('.user-search-page .player-row').length===1&&document.querySelector('.player-count')===null");
+            await Script("document.querySelector('.user-search-page .player-row').click()");
+            await Check("Selecting a result checks tags", "document.querySelector('.search-checking').textContent.includes('Checking tags')");
+            await Script("window.dispatchEvent(new CustomEvent('elixr:user-search',{detail:{type:'users.detail',requestId:window.__elixrSearchRequest,user:{..." + fixture + ",tagsChecked:true,tags:[{name:'Fixture tag',category:'Custom',color:'#ff80dd'}]},feeds:[]}}))");
+            await Check("Lookup renders shared profile and tags", "document.querySelector('.profile-name h2').textContent.includes('Search fixture')&&document.querySelector('.profile-tags').textContent.includes('Fixture tag')");
+            await Check("Search does not pretend to be an encounter", "!document.querySelector('.profile-details').textContent.includes('Last encountered')");
+            await Capture("search-tags");
+            await Script("document.querySelector('.close-profile').click();window.dispatchEvent(new CustomEvent('elixr:user-search',{detail:{type:'users.detail',requestId:window.__elixrSearchRequest-1,user:" + fixture + "}}))");
+            await Check("Closed profiles ignore stale replies", "!document.querySelector('.profile-panel')");
+            await Script("document.querySelector('.user-search-page .player-row').click();window.dispatchEvent(new CustomEvent('elixr:user-search',{detail:{type:'users.error',requestId:window.__elixrSearchRequest,message:'Diagnostic unavailable'}}))");
+            await Check("Failed checks offer retry instead of no tags", "document.querySelector('.search-checking').textContent.includes('Retry')&&document.querySelector('[role=alert]').textContent.includes('Diagnostic unavailable')");
+            await File.WriteAllTextAsync(Path.Combine(folder, "checks.json"), JsonSerializer.Serialize(checks, new JsonSerializerOptions { WriteIndented = true }));
+            if (testImagePath is not null) File.Delete(testImagePath);
+            Close(); return;
+        }
         await Script("window.__elixrPreview.reset()");
         await Check("18 fictional players", "document.querySelectorAll('.player-row').length===18");
         await Check("sidebar 150px", "document.querySelector('.sidebar').getBoundingClientRect().width===150");

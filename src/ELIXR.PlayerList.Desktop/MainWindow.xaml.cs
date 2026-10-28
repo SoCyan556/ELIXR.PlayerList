@@ -173,6 +173,9 @@ public partial class MainWindow : Window
                 throw new InvalidOperationException("Sign in first.");
             switch (type)
             {
+                case "users.search": await HandleSearchAsync(root, false); break;
+                case "users.lookup": await HandleSearchAsync(root, true); break;
+                case "users.cancel": ClearSearch(); break;
                 case "ready":
                     _ready = true;
                     if (IsUiPreview) PushState();
@@ -248,8 +251,8 @@ public partial class MainWindow : Window
                     var groupUserId = ValidatedUserId(root);
                     var groupId = root.GetProperty("groupId").GetString() ?? "";
                     if (!ELIXR.PlayerList.Infrastructure.Services.TagFeedParser.ValidId(groupId, "grp_")) throw new InvalidOperationException("Invalid group ID.");
-                    var groupCode = _players.Current.Players.FirstOrDefault(p => p.VrchatUserId == groupUserId)?.Tags
-                        .FirstOrDefault(t => t.Category == TagCategory.Group && t.GroupId == groupId && VrchatGroupCode.IsValid(t.GroupCode))?.GroupCode;
+                    var groupCode = (_players.Current.Players.FirstOrDefault(p => p.VrchatUserId == groupUserId)?.Tags ?? _searchResults.GetValueOrDefault(groupUserId)?.Tags)
+                        ?.FirstOrDefault(t => t.Category == TagCategory.Group && t.GroupId == groupId && VrchatGroupCode.IsValid(t.GroupCode))?.GroupCode;
                     if (!VrchatGroupCode.IsValid(groupCode))
                     {
                         Post(new { type = "error", message = "This group's code is not available yet." });
@@ -380,6 +383,7 @@ public partial class MainWindow : Window
 
     private async Task SignOutAsync()
     {
+        ClearSearch();
         _desktopOverlay?.Close();
         _authCancellation?.Cancel();
         await _authLock.WaitAsync();
@@ -477,6 +481,7 @@ public partial class MainWindow : Window
     private async void ShutdownAsync(object? sender, EventArgs e)
     {
         _closing = true;
+        ClearSearch();
         _updateLifetime.Cancel();
         _desktopOverlay?.Close();
         _authCancellation?.Cancel();

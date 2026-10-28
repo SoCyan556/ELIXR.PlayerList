@@ -9,11 +9,12 @@ import PlayerTable from './components/PlayerTable.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
 import TagControls from './components/TagControls.vue'
 import ToggleSwitch from './components/ToggleSwitch.vue'
+import UserSearch from './components/UserSearch.vue'
 import logo from './assets/elixr-logo.png'
 import { categories } from './tags'
 import { state, start, send, updateSetting } from './state'
 const page = ref('Players'), selected = ref(null)
-const nav = [{label:'Home',icon:'House'}, {label:'Players',icon:'Users'}, {label:'Recent',icon:'Clock3'}, {label:'Settings',icon:'Settings'}]
+const nav = [{label:'Home',icon:'House'}, {label:'Players',icon:'Users'}, {label:'Search',icon:'Search'}, {label:'Recent',icon:'Clock3'}, {label:'Settings',icon:'Settings'}]
 const title = computed(()=>({Players:'Player List',Recent:'Recent Players'}[page.value] || page.value))
 const pageIcon = computed(()=>nav.find(n=>n.label===page.value).icon)
 const players = computed(()=>page.value==='Recent' ? [] : state.players)
@@ -46,6 +47,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',escape))
 <PlayerTable :players="players" :settings="state.settings" :selected="selected" :recent="page==='Recent'" @select="selected=$event"/>
 <AnimatePresence><motion.div v-if="selected" class="profile-slot" :initial="{x:reducedMotion?0:28,scale:reducedMotion?1:.97,opacity:0}" :animate="{x:0,scale:1,opacity:1}" :exit="{x:reducedMotion?0:24,opacity:0}" :transition="spring"><ProfilePanel :player="selected" :settings="state.settings" :instance="state.instance" @close="selected=null"/></motion.div></AnimatePresence>
 </section>
+<UserSearch v-else-if="page==='Search'" key="Search"/>
 <section v-else-if="page==='Home'" key="Home" class="home-page">
 <div class="section-panel home-intro"><h2>Welcome to ELIXR</h2><p class="secondary">Stay safe. Stay aware.</p><dl class="connection-list"><div><dt>VRChat</dt><dd>{{ connection }}</dd></div><div><dt>Instance</dt><dd>{{ state.instance?.worldName || 'Not available' }}</dd></div><div><dt>Account</dt><dd>{{ state.capabilities.authentication?'Connected':'Not signed in' }}</dd></div></dl><div class="home-actions"><button @click="navigate('Players')"><AppIcon name="Users" :size="17"/>Open Player List</button><button :disabled="!state.capabilities.overlay" @click="send('overlay.visibility',{visible:true})"><AppIcon name="Eye" :size="17"/>Show VR Overlay</button></div></div>
 </section>

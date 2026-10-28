@@ -14,6 +14,7 @@ if (bridge) {
     } else if (data.type === 'profile.focus') state.profileRequest = {userId:data.userId}
     else if (data.type === 'profile.copied') state.profileAction = {type:'copied',userId:data.userId}
     else if (data.type === 'group.copied') state.profileAction = {type:'groupCopied',userId:data.userId,groupId:data.groupId}
+    else if (data.type?.startsWith('users.')) window.dispatchEvent(new CustomEvent('elixr:user-search',{detail:data}))
     else if (data.type === 'error') state.notice = data.message
   })
 }
