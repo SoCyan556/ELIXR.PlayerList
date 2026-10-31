@@ -61,6 +61,7 @@ public partial class MainWindow : Window
         Loaded += InitializeAsync;
         _players.Changed += PlayersChanged;
         Closed += ShutdownAsync;
+        Closing += FlushRecentBeforeClosing;
     }
 
     private static bool IsTrusted(string uri) => Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
@@ -70,6 +71,7 @@ public partial class MainWindow : Window
     {
         if (_startupStarted || _closing) return;
         _startupStarted = true;
+        if (RecentPlayers is { } recent) recent.Changed += RecentChanged;
         var stage = "bundled-frontend";
         string? runtimeVersion = null;
         try
@@ -136,12 +138,12 @@ public partial class MainWindow : Window
         });
     }
 
-    private void Post(object payload)
+    private void Post(object payload, bool includeOverlay = true)
     {
         if (_closing) return;
         var json = JsonSerializer.Serialize(payload, _json);
         if (_ready && Browser.CoreWebView2 is { } core && IsTrusted(core.Source)) core.PostWebMessageAsJson(json);
-        _desktopOverlay?.PostState(json);
+        if (includeOverlay) _desktopOverlay?.PostState(json);
     }
 
     private void PushState()
@@ -157,8 +159,13 @@ public partial class MainWindow : Window
             updates = UpdateState,
             desktopOverlay = new { visible = _desktopOverlay is not null },
             auth = new { status = _authResult.Status.ToString(), user = _authResult.User, verificationMethods = _authResult.VerificationMethods, message = _authResult.Message, busy = _authBusy, restoring = _restoring },
-            capabilities = new { overlay = _overlay?.IsAvailable == true, desktopOverlay = true, history = false, authentication = _authentication.CurrentUser is not null }
+            capabilities = new { overlay = _overlay?.IsAvailable == true, desktopOverlay = true, history = RecentPlayers is not null, authentication = _authentication.CurrentUser is not null }
         }});
+        if (_recentDirty)
+        {
+            _recentDirty = false;
+            Post(new { type = "recent.state", players = RecentPlayers?.Current ?? [], notice = RecentPlayers?.Notice }, false);
+        }
     }
 
     private async void MessageReceivedAsync(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -251,8 +258,10 @@ public partial class MainWindow : Window
                     var groupUserId = ValidatedUserId(root);
                     var groupId = root.GetProperty("groupId").GetString() ?? "";
                     if (!ELIXR.PlayerList.Infrastructure.Services.TagFeedParser.ValidId(groupId, "grp_")) throw new InvalidOperationException("Invalid group ID.");
-                    var groupCode = (_players.Current.Players.FirstOrDefault(p => p.VrchatUserId == groupUserId)?.Tags ?? _searchResults.GetValueOrDefault(groupUserId)?.Tags)
-                        ?.FirstOrDefault(t => t.Category == TagCategory.Group && t.GroupId == groupId && VrchatGroupCode.IsValid(t.GroupCode))?.GroupCode;
+                    var groupCode = (_players.Current.Players.FirstOrDefault(p => p.VrchatUserId == groupUserId)?.Tags ?? [])
+                        .Concat(_searchResults.GetValueOrDefault(groupUserId)?.Tags ?? [])
+                        .Concat(RecentPlayers?.Current.FirstOrDefault(p => p.VrchatUserId == groupUserId)?.Tags ?? [])
+                        .FirstOrDefault(t => t.Category == TagCategory.Group && t.GroupId == groupId && VrchatGroupCode.IsValid(t.GroupCode))?.GroupCode;
                     if (!VrchatGroupCode.IsValid(groupCode))
                     {
                         Post(new { type = "error", message = "This group's code is not available yet." });
@@ -360,6 +369,12 @@ public partial class MainWindow : Window
         try
         {
             _authResult = await action(_authCancellation.Token);
+            if (_authResult.Status == AuthenticationStatus.SignedIn && _authentication.CurrentUser is { } historyAccount && RecentPlayers is { } history)
+            {
+                await history.ActivateAsync(historyAccount.VrchatUserId, _authCancellation.Token);
+                _recentDirty = true;
+                foreach (var player in _players.Current.Players) history.Observe(player);
+            }
             if (_authResult.Status == AuthenticationStatus.SignedIn && !IsUiPreview && _authentication.CurrentUser is { } signedInUser && UsageRegistration is { } registration)
                 _ = registration.RegisterAsync(signedInUser.VrchatUserId);
             if (_authResult.Status == AuthenticationStatus.SignedIn && !_playerStarted)
@@ -385,6 +400,7 @@ public partial class MainWindow : Window
     {
         ClearSearch();
         _desktopOverlay?.Close();
+        if (RecentPlayers is { } history) await history.FlushAsync();
         _authCancellation?.Cancel();
         await _authLock.WaitAsync();
         _authBusy = true;
@@ -393,6 +409,7 @@ public partial class MainWindow : Window
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             await _authentication.LogoutAsync(timeout.Token);
+            _recentDirty = true;
             _authResult = new(AuthenticationStatus.SignedOut);
         }
         finally { _authResult = new(AuthenticationStatus.SignedOut); _authBusy = false; _authLock.Release(); PushState(); }
@@ -487,6 +504,7 @@ public partial class MainWindow : Window
         _authCancellation?.Cancel();
         _players.Changed -= PlayersChanged;
         await _players.DisposeAsync();
+        if (RecentPlayers is { } recent) { recent.Changed -= RecentChanged; await recent.DisposeAsync(); }
         Browser.Dispose();
     }
     private void MinimizeClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;

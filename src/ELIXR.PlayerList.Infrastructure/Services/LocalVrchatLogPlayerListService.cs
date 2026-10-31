@@ -23,6 +23,7 @@ public sealed class LocalVrchatLogPlayerListService : IPlayerListService
     private bool _active, _awaitingRoomName, _discardingLine, _dirty, _started, _disposed;
     public InstanceState Current { get; private set; } = InstanceState.Offline;
     public event EventHandler<InstanceState>? Changed;
+    public event EventHandler<Player>? Encountered;
 
     public LocalVrchatLogPlayerListService(string? directory = null, Func<bool>? isClientRunning = null, TimeSpan? interval = null)
     {
@@ -154,12 +155,13 @@ public sealed class LocalVrchatLogPlayerListService : IPlayerListService
         switch (item.Type)
         {
             case VrchatLogEventType.RoomJoined:
+                EndEncounters(seen);
                 ResetRoom();
                 SetLocation(item.Location);
                 _active = _awaitingRoomName = true;
                 break;
             case VrchatLogEventType.RoomNamed:
-                if (!_awaitingRoomName) ResetRoom();
+                if (!_awaitingRoomName) { EndEncounters(seen); ResetRoom(); }
                 if (item.Location is not null) SetLocation(item.Location);
                 _worldName = item.WorldName;
                 _active = true;
@@ -168,12 +170,13 @@ public sealed class LocalVrchatLogPlayerListService : IPlayerListService
             case VrchatLogEventType.RoomEntered:
                 if (item.Location is not null)
                 {
-                    if (_worldId is not null && _worldId + ":" + _instanceId != item.Location) ResetRoom();
+                    if (_worldId is not null && _worldId + ":" + _instanceId != item.Location) { EndEncounters(seen); ResetRoom(); }
                     SetLocation(item.Location);
                 }
                 _active = true;
                 break;
             case VrchatLogEventType.RoomLeft:
+                EndEncounters(seen);
                 ResetRoom();
                 break;
             case VrchatLogEventType.PlayerJoined:
@@ -183,9 +186,12 @@ public sealed class LocalVrchatLogPlayerListService : IPlayerListService
                 _players.TryGetValue(key, out var old);
                 if (item.UserId is not null) _players.Remove(partialKey);
                 _players[key] = new(item.UserId ?? "", name, old?.FirstSeen ?? seen, seen, old?.Tags ?? [], item.UserId is not null);
+                Encountered?.Invoke(this, _players[key]);
                 _active = true;
                 break;
             case VrchatLogEventType.PlayerLeft:
+                foreach (var departing in _players.Values.Where(p => item.UserId is not null ? p.VrchatUserId == item.UserId : p.DisplayName.Equals(item.DisplayName, StringComparison.OrdinalIgnoreCase)).ToArray())
+                    Encountered?.Invoke(this, departing with { LastSeen = seen });
                 if (item.UserId is not null) _players.Remove(item.UserId);
                 else
                 {
@@ -197,6 +203,9 @@ public sealed class LocalVrchatLogPlayerListService : IPlayerListService
         }
         _dirty = true;
     }
+
+    private void EndEncounters(DateTimeOffset seen)
+    { foreach (var player in _players.Values) Encountered?.Invoke(this, player with { LastSeen = seen }); }
 
     private void SetLocation(string? location)
     {

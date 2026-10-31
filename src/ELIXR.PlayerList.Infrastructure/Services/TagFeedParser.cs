@@ -107,13 +107,15 @@ public static class TagFeedParser
             if (source == "FewTags")
             {
                 if (Flag(record, "Malicious")) tags.Add(new("Malicious", TagCategory.Malicious, "#FF4D4F", Source: source, Priority: 700));
-                if (Flag(record, "TextActive") || Flag(record, "BigTextActive")) Add(Property(record, "Tag"), enlarged: Flag(record, "BigTextActive"));
-                if (Flag(record, "BigTextActive")) Add(Property(record, "PlateBigText"), true);
+                // ELIXR lists stored labels even when FewTags disables their in-game text display.
+                // Record-level Active still excludes retired entries; flags never invent labels.
+                Add(Property(record, "Tag"), enlarged: Flag(record, "BigTextActive"));
+                Add(Property(record, "PlateBigText"), true);
             }
             else Add(Property(record, "tags", "Tags"));
             // The original lookup replaces an earlier active record for the same ID.
             var merged = tags.OrderByDescending(t => t.Priority).DistinctBy(t => t.Name, StringComparer.OrdinalIgnoreCase);
-            result[id] = (source == "FewTags" ? merged.Take(6) : merged.Take(64)).ToArray();
+            result[id] = merged.Take(64).ToArray();
         }
         return result;
     }

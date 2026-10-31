@@ -6,7 +6,7 @@ public sealed record PlayerTag(string Name, TagCategory Category, string? Color 
     IReadOnlyList<string>? Gradient = null, string? Animation = null, double Speed = 1,
     double Amplitude = 1, bool Rainbow = false, IReadOnlyList<TagColorRun>? Runs = null,
     string? Source = null, int Priority = 100, string? GroupId = null, string? GroupName = null, string? GroupCode = null);
-public sealed record Player(string VrchatUserId, string DisplayName, DateTimeOffset FirstSeen, DateTimeOffset LastSeen, IReadOnlyList<PlayerTag> Tags, bool HasCompleteIdentity = true, string? AvatarUrl = null);
+public sealed record Player(string VrchatUserId, string DisplayName, DateTimeOffset FirstSeen, DateTimeOffset LastSeen, IReadOnlyList<PlayerTag> Tags, bool HasCompleteIdentity = true, string? AvatarUrl = null, bool IsFriend = false);
 public sealed record InstanceState(string? WorldId, string? InstanceId, string? WorldName, bool IsActive, IReadOnlyList<Player> Players)
 {
     public static InstanceState Offline { get; } = new(null, null, null, false, []);

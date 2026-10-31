@@ -17,6 +17,7 @@ public interface IAuthenticationService
 }
 public interface ITagService { Task<IReadOnlyList<PlayerTag>> GetTagsAsync(string vrchatUserId, CancellationToken cancellationToken = default); }
 public interface IPlayerImageService { Task<string?> GetAsync(string vrchatUserId, CancellationToken cancellationToken = default); }
+public interface IPlayerRelationshipService { bool? IsFriend(string vrchatUserId); }
 public interface IRecentPlayersService
 {
     Task<IReadOnlyList<Player>> GetAsync(CancellationToken cancellationToken = default);

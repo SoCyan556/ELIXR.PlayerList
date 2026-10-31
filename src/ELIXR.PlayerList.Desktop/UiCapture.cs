@@ -59,6 +59,37 @@ public partial class MainWindow
             encoder.Save(file);
         }
         const string clickCompact = "document.querySelector('.tag-controls button[aria-label=\"Compact Tags\"]').click()";
+        if (args.Contains("--ordering-only"))
+        {
+            await Script("window.__elixrPreview.reset();window.__elixrPreview.ordering()");
+            await Check("self friends and others sort correctly", "[...document.querySelectorAll('.player-name strong')].map(e=>e.textContent).join('|')==='You · Demo|Amy · Demo|Zoe · Demo|Aaron · Demo|Bella · Demo'");
+            await Check("friend groups have separate headings", "[...document.querySelectorAll('.player-section>span:first-child')].map(e=>e.textContent).join('|')==='You|Friends|Other players'");
+            await Capture("ordered-player-list");
+            await Script("const input=document.querySelector('.search input');input.value='Zoe';input.dispatchEvent(new Event('input',{bubbles:true}))");
+            await Check("search hides empty sections", "document.querySelectorAll('.player-row').length===1&&document.querySelectorAll('.player-section').length===1&&document.querySelector('.player-section').textContent.includes('Friends')");
+            await Script("[...document.querySelectorAll('nav button')].find(b=>b.textContent.trim()==='Recent').click()");
+            await Check("Recent retains encounter order without friend sections", "!document.querySelector('.player-section')&&[...document.querySelectorAll('.player-name strong')].map(e=>e.textContent).join('|')==='Bella · Demo|Zoe · Demo|Amy · Demo'");
+            await File.WriteAllTextAsync(Path.Combine(folder,"checks.json"),JsonSerializer.Serialize(checks,new JsonSerializerOptions{WriteIndented=true}));
+            if(testImagePath is not null)File.Delete(testImagePath);
+            Close();return;
+        }
+        if (args.Contains("--recent-only"))
+        {
+            await Script("window.__elixrPreview.reset();window.__elixrPreview.recent();[...document.querySelectorAll('nav button')].find(b=>b.textContent.trim()==='Recent').click()");
+            await Check("Recent uses history rather than current roster", "document.querySelectorAll('.player-row').length===3");
+            await Check("Recent shows encounter times", "document.querySelectorAll('.recent-seen').length===3");
+            await Check("History explains local retention", "document.querySelector('.recent-history-help').textContent.includes('30 days')");
+            await Capture("recent-list");
+            await Script("document.querySelector('.player-row').click()");
+            await Check("Recent opens the existing profile", "!!document.querySelector('.profile-panel')");
+            await Check("Recent does not show current instance as historic context", "!document.querySelector('.profile-details').textContent.includes('Instance')");
+            await Capture("recent-profile");
+            await Script("document.querySelector('.close-profile').click();const input=document.querySelector('.search input');input.value='no match for this history';input.dispatchEvent(new Event('input',{bubbles:true}))");
+            await Check("Recent search filters saved records", "document.querySelectorAll('.player-row').length===0&&document.querySelector('.empty-state').textContent.includes('No matching players')");
+            await File.WriteAllTextAsync(Path.Combine(folder, "checks.json"), JsonSerializer.Serialize(checks, new JsonSerializerOptions { WriteIndented = true }));
+            if (testImagePath is not null) File.Delete(testImagePath);
+            Close(); return;
+        }
         if (args.Contains("--search-only"))
         {
             await Script("window.__elixrPreview.reset();[...document.querySelectorAll('nav button')].find(b=>b.textContent.trim()==='Search').click()");

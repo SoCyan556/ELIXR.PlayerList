@@ -8,7 +8,7 @@ using ELIXR.PlayerList.Core.Services;
 namespace ELIXR.PlayerList.Infrastructure.Services;
 
 // Only native code accesses VRChat. The UI receives an opaque local image URL, never cookies or signed CDN URLs.
-public sealed class VrchatProfileImageService(HttpClient api, HttpClient publicImages, Func<string?> accountId, string? cacheDirectory = null) : IPlayerImageService
+public sealed class VrchatProfileImageService(HttpClient api, HttpClient publicImages, Func<string?> accountId, string? cacheDirectory = null) : IPlayerImageService, IPlayerRelationshipService
 {
     public const string ImageHost = "avatars.elixr.example";
     public string CacheDirectory { get; } = Path.GetFullPath(cacheDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ELIXR", "PlayerList", "PlayerImages"));
@@ -18,6 +18,8 @@ public sealed class VrchatProfileImageService(HttpClient api, HttpClient publicI
     private DateTimeOffset _nextRequest;
     private DateTimeOffset _rateLimitedUntil;
     private string? _account;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string Account, bool Friend, DateTimeOffset Expires)> _friendships = new(StringComparer.OrdinalIgnoreCase);
+    public bool? IsFriend(string vrchatUserId) => _friendships.TryGetValue(vrchatUserId, out var status) && status.Account == accountId() && status.Expires > DateTimeOffset.UtcNow ? status.Friend : null;
 
     public static bool AllowedImageUri(Uri uri) => uri.Scheme == "https" && uri.IsDefaultPort && uri.UserInfo.Length == 0 &&
         (uri.Host is "files.vrchat.cloud" or "assets.vrchat.com" || uri.Host == "api.vrchat.cloud" &&
@@ -51,7 +53,7 @@ public sealed class VrchatProfileImageService(HttpClient api, HttpClient publicI
         try
         {
             var account = accountId();
-            if (_account != account) { _profiles.Clear(); _account = account; }
+            if (_account != account) { _profiles.Clear(); _friendships.Clear(); _account = account; }
             if (account is null) return null;
             var now = DateTimeOffset.UtcNow;
             if (_profiles.TryGetValue(id, out var cached) && cached.Expires > now && CachedExists(cached.Image)) return cached.Image;
@@ -69,6 +71,10 @@ public sealed class VrchatProfileImageService(HttpClient api, HttpClient publicI
             var body = await ReadBoundedAsync(response, 512 * 1024, token);
             using var json = JsonDocument.Parse(body);
             if (TagFeedParser.Text(json.RootElement, "id") != id) return Remember(id, cached.Image, 120);
+            if (accountId() != account) return null;
+            var friendship = TagFeedParser.Property(json.RootElement, "isFriend");
+            if (friendship.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                _friendships[id] = (account, friendship.GetBoolean(), DateTimeOffset.UtcNow.AddMinutes(10));
             foreach (var uri in Candidates(json.RootElement))
             {
                 string? image;
@@ -91,7 +97,7 @@ public sealed class VrchatProfileImageService(HttpClient api, HttpClient publicI
     private string? Remember(string id, string? image, int seconds)
     {
         if (_profiles.Count >= 512)
-            foreach (var key in _profiles.OrderBy(p => p.Value.Expires).Take(128).Select(p => p.Key).ToArray()) _profiles.Remove(key);
+            foreach (var key in _profiles.OrderBy(p => p.Value.Expires).Take(128).Select(p => p.Key).ToArray()) { _profiles.Remove(key); _friendships.TryRemove(key, out _); }
         _profiles[id] = (DateTimeOffset.UtcNow.AddSeconds(seconds), image);
         return image;
     }

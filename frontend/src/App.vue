@@ -17,7 +17,7 @@ const page = ref('Players'), selected = ref(null)
 const nav = [{label:'Home',icon:'House'}, {label:'Players',icon:'Users'}, {label:'Search',icon:'Search'}, {label:'Recent',icon:'Clock3'}, {label:'Settings',icon:'Settings'}]
 const title = computed(()=>({Players:'Player List',Recent:'Recent Players'}[page.value] || page.value))
 const pageIcon = computed(()=>nav.find(n=>n.label===page.value).icon)
-const players = computed(()=>page.value==='Recent' ? [] : state.players)
+const players = computed(()=>page.value==='Recent' ? state.recentPlayers : state.players)
 const connection = computed(()=>state.preview ? 'UI Preview · fictional players' : state.connected ? 'Connected to VRChat' : 'Waiting for VRChat')
 function navigate(name) { page.value = name; selected.value = null }
 function escape(e) { if(e.key==='Escape') selected.value=null }
@@ -32,6 +32,10 @@ watch(()=>state.players, list=>{
   selected.value=list.find(p=>(p.vrchatUserId||p.displayName)===key)||null
  }
 })
+watch(()=>state.recentPlayers, list=>{
+ if(selected.value&&page.value==='Recent') selected.value=list.find(p=>p.vrchatUserId===selected.value.vrchatUserId)||null
+})
+watch(()=>state.auth.status,status=>{if(status!=='SignedIn')selected.value=null})
 onMounted(()=>{ start(); window.addEventListener('keydown',escape) })
 onBeforeUnmount(()=>window.removeEventListener('keydown',escape))
 </script>
@@ -43,9 +47,10 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',escape))
 <main>
 <div v-if="state.auth.message" class="notice" role="status">{{ state.auth.message }}</div>
 <div v-if="!state.host&&!state.preview" class="notice">Browser preview · Native services are available in the desktop app.</div><div v-if="state.notice" class="notice" role="alert">{{ state.notice }}</div>
+<div v-if="page==='Recent'" class="help recent-history-help">Saved on this PC · Latest 1,000 players within 30 days · Tags and portraits reflect the last captured encounter.<p v-if="state.historyNotice" role="status">{{state.historyNotice}}</p></div>
 <Transition name="page" mode="out-in"><section v-if="page==='Players'||page==='Recent'" :key="page" class="players-layout" :class="{'profile-open':selected}">
 <PlayerTable :players="players" :settings="state.settings" :selected="selected" :recent="page==='Recent'" @select="selected=$event"/>
-<AnimatePresence><motion.div v-if="selected" class="profile-slot" :initial="{x:reducedMotion?0:28,scale:reducedMotion?1:.97,opacity:0}" :animate="{x:0,scale:1,opacity:1}" :exit="{x:reducedMotion?0:24,opacity:0}" :transition="spring"><ProfilePanel :player="selected" :settings="state.settings" :instance="state.instance" @close="selected=null"/></motion.div></AnimatePresence>
+<AnimatePresence><motion.div v-if="selected" class="profile-slot" :initial="{x:reducedMotion?0:28,scale:reducedMotion?1:.97,opacity:0}" :animate="{x:0,scale:1,opacity:1}" :exit="{x:reducedMotion?0:24,opacity:0}" :transition="spring"><ProfilePanel :player="selected" :settings="state.settings" :instance="page==='Recent'?null:state.instance" @close="selected=null"/></motion.div></AnimatePresence>
 </section>
 <UserSearch v-else-if="page==='Search'" key="Search"/>
 <section v-else-if="page==='Home'" key="Home" class="home-page">
@@ -55,7 +60,7 @@ onBeforeUnmount(()=>window.removeEventListener('keydown',escape))
 <div class="section-panel account-settings"><h2>VRChat account</h2><p class="help">{{ state.auth.user?.displayName || 'Signed in' }}</p><button class="sign-out" @click="send('auth.logout')">Sign out</button></div>
 <div class="section-panel setting-list"><h2>Tag Display</h2><ToggleSwitch v-for="c in categories" :key="c.key" :label="'Show '+c.label+' Tags'" :icon="c.icon" :category="c.className" :model-value="state.settings[c.setting]" @update:model-value="updateSetting(c.setting,$event)"/><ToggleSwitch label="Compact Tag Icons" icon="LayoutGrid" :model-value="state.settings.compactTags" @update:model-value="updateSetting('compactTags',$event)"/></div>
 <div class="section-panel"><h2>Appearance</h2><label class="slider-label">UI scale<output>{{ Math.round(state.settings.uiScale*100) }}%</output></label><input aria-label="UI scale" type="range" min=".85" max="1.3" step=".05" :value="state.settings.uiScale" @input="updateSetting('uiScale',Number($event.target.value))"/></div>
-<div class="section-panel"><h2>Player List</h2><p class="help">Player activity is read from local VRChat logs.</p></div>
+<div class="section-panel"><h2>Player List</h2><p class="help">Player activity is read from local VRChat logs. Recent Players saves up to 1,000 distinct encounters from the last 30 days on this PC, separated by signed-in account. Search results are not saved as encounters.</p></div>
 <div class="section-panel"><h2>Tag sources</h2><p class="help">FewTags · ETags · etags-groups. Public feeds refresh every 10 minutes. Group tags match public VRChat memberships.</p><p v-for="feed in state.tagFeeds || []" :key="feed.name" class="help" :title="feed.url">{{ feed.name }}: {{ feed.state }} · {{ feed.records.toLocaleString() }} records</p><p class="help">Community tags are third-party labels, not verified facts or app permissions.</p></div>
 </div><div>
 <div class="section-panel setting-list"><h2>VR Overlay</h2><ToggleSwitch label="Show in VR" icon="Eye" :disabled="!state.capabilities.overlay" :model-value="state.capabilities.overlay&&state.settings.overlayVisible" @update:model-value="send('overlay.visibility',{visible:$event})"/><p class="help" v-if="!state.capabilities.overlay">SteamVR integration is not available in this build.</p></div>

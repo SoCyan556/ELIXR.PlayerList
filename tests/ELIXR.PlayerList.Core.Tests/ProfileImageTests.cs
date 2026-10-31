@@ -145,6 +145,41 @@ public sealed class ProfileImageTests
         try { Assert.NotNull(await new VrchatProfileImageService(api, api, () => User, directory).GetAsync(User)); }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
+    [Fact]
+    public async Task FriendshipIsReadWithoutAnImageAndNeverLeaksAcrossAccounts()
+    {
+        string? account=User;
+        using var api=new HttpClient(new Handler(_=>Json(JsonSerializer.Serialize(new {id=User,isFriend=true}))));
+        var service=new VrchatProfileImageService(api,api,()=>account,DirectoryForTest());
+        Assert.Null(service.IsFriend(User));
+        Assert.Null(await service.GetAsync(User)); Assert.True(service.IsFriend(User));
+        account=User.Replace("000001","000002"); Assert.Null(service.IsFriend(User));
+        account=null; Assert.Null(service.IsFriend(User));
+    }
+    [Theory]
+    [InlineData("\"true\"")]
+    [InlineData("null")]
+    public async Task OnlyAnActualBooleanFriendshipFieldIsAccepted(string value)
+    {
+        using var api=new HttpClient(new Handler(_=>Json("{\"id\":\""+User+"\",\"isFriend\":"+value+"}")));
+        var service=new VrchatProfileImageService(api,api,()=>User,DirectoryForTest());
+        await service.GetAsync(User); Assert.Null(service.IsFriend(User));
+    }
+    private sealed class RelationshipImages : IPlayerImageService,IPlayerRelationshipService
+    {
+        public bool? IsFriend(string id)=>true;
+        public Task<string?> GetAsync(string id,CancellationToken token=default)=>Task.FromResult<string?>(null);
+    }
+    [Fact]
+    public async Task RosterPublishesFriendshipEvenWhenThePortraitIsUnavailable()
+    {
+        var roster=new Roster();roster.Set(new Player(User,"Test",DateTimeOffset.Now,DateTimeOffset.Now,[]));
+        await using var service=new ProfileImagePlayerListService(roster,new RelationshipImages(),()=>true);
+        var updated=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.Changed+=(_,state)=>{if(state.Players.FirstOrDefault()?.IsFriend==true)updated.TrySetResult();};
+        await service.StartAsync(); await updated.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.True(Assert.Single(service.Current.Players).IsFriend);Assert.Null(service.Current.Players[0].AvatarUrl);
+    }
     private sealed class Roster : IPlayerListService
     {
         public InstanceState Current { get; private set; } = InstanceState.Offline;

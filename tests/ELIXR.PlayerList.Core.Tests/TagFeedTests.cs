@@ -26,7 +26,25 @@ public sealed class TagFeedTests
         Assert.Equal("AB", tags[3].Name); Assert.Equal(2, tags[3].Runs!.Count);
         Assert.Equal("#00f", tags[3].Runs![1].Color);
         Assert.Empty(TagFeedParser.Parse(Few.Replace("\"Active\":true", "\"Active\":false"), "FewTags"));
-        Assert.Single(TagFeedParser.Parse(Few.Replace("\"TextActive\":true", "\"TextActive\":false"), "FewTags")[User]);
+        Assert.Equal(4, TagFeedParser.Parse(Few.Replace("\"TextActive\":true", "\"TextActive\":false"), "FewTags")[User].Count);
+    }
+    [Fact]
+    public void FewTags_DisplayFlagsDoNotHideStoredLabelsOrCreateFlagOnlyTags()
+    {
+        var json = """{"records":[{"UserID":"usr_11111111-2222-3333-4444-555555555555","Active":true,"TextActive":false,"BigTextActive":false,"Malicious":false,"Tag":["<color=#123456>Stored label</color>"],"PlateBigText":".PULSE.Large label"}]}""";
+        var tags = TagFeedParser.Parse(json, "FewTags")[User];
+        Assert.Equal(2, tags.Count);
+        Assert.Contains(tags, t => t.Name == "Stored label" && t.Color == "#123456");
+        Assert.Contains(tags, t => t.Name == "Large label" && string.IsNullOrEmpty(t.Animation));
+        Assert.DoesNotContain(tags, t => t.Name == "Malicious");
+        Assert.Empty(TagFeedParser.Parse(json.Replace("\"Active\":true", "\"Active\":false"), "FewTags"));
+    }
+    [Fact]
+    public void FewTags_DoesNotTruncateStoredLabelsAtTheOldSixTagLimit()
+    {
+        var labels = string.Join(',', Enumerable.Range(1, 8).Select(i => "\"Label " + i + "\""));
+        var json = "{\"records\":[{\"UserID\":\"" + User + "\",\"Active\":true,\"TextActive\":false,\"Tag\":[" + labels + "]}]}";
+        Assert.Equal(8, TagFeedParser.Parse(json, "FewTags")[User].Count);
     }
     [Theory]
     [InlineData(".CYLN.", "")]

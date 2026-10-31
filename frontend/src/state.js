@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 export const defaults = { showMaliciousTags: true, showCustomTags: true, showGroupTags: true, compactTags: false, overlayEnabled: true, overlayVisible: true, uiScale: 1, overlayOpacity: .94, checkUpdatesOnStartup: true }
 const preview = import.meta.env.MODE === 'preview' && new URLSearchParams(location.search).get('preview') === '1'
-export const state = reactive({ connected: false, instance: null, players: [], profileRequest: null, profileAction: null, updates: {currentVersion:'0.1.0',availableVersion:null,prompt:false,busy:false,enabled:false,message:'Updates are checked against the official GitHub releases.'}, settings: { ...defaults }, desktopOverlay: { visible: false }, auth: { status:'SignedOut',busy:false,restoring:false,message:null }, capabilities: { overlay: false, desktopOverlay: false, history: false, authentication: false }, host: false, preview, notice: '' })
+export const state = reactive({ connected: false, instance: null, players: [], recentPlayers: [], historyNotice:null, profileRequest: null, profileAction: null, updates: {currentVersion:'0.1.0',availableVersion:null,prompt:false,busy:false,enabled:false,message:'Updates are checked against the official GitHub releases.'}, settings: { ...defaults }, desktopOverlay: { visible: false }, auth: { status:'SignedOut',busy:false,restoring:false,message:null }, capabilities: { overlay: false, desktopOverlay: false, history: false, authentication: false }, host: false, preview, notice: '' })
 const bridge = window.chrome?.webview
 export function send(type, payload = {}) { if (!preview || ['ready','desktopOverlay.visibility','desktopOverlay.close','desktopOverlay.resize','desktopOverlay.layout','profile.copyId','profile.openInApp'].includes(type)) bridge?.postMessage({ type, ...payload }) }
 if (bridge) {
@@ -14,6 +14,7 @@ if (bridge) {
     } else if (data.type === 'profile.focus') state.profileRequest = {userId:data.userId}
     else if (data.type === 'profile.copied') state.profileAction = {type:'copied',userId:data.userId}
     else if (data.type === 'group.copied') state.profileAction = {type:'groupCopied',userId:data.userId,groupId:data.groupId}
+    else if (data.type === 'recent.state' && !preview) { state.recentPlayers = data.players; state.historyNotice=data.notice }
     else if (data.type?.startsWith('users.')) window.dispatchEvent(new CustomEvent('elixr:user-search',{detail:data}))
     else if (data.type === 'error') state.notice = data.message
   })
@@ -29,6 +30,13 @@ export async function start() {
       reset: () => { state.players = previewPlayers; Object.assign(state.settings, defaults); state.notice=''; state.auth = {status:'SignedIn',busy:false,restoring:false} },
       auth: status => { state.auth = {status, busy:status==='Restoring',restoring:status==='Restoring',verificationMethods:['totp','emailOtp']} },
       empty: () => { state.players = [] },
+      recent: () => { state.recentPlayers = previewPlayers.slice(0,3).map((player,index)=>({...player,lastSeen:new Date(Date.now()-index*300000).toISOString()})) },
+      ordering: () => {
+        const names=['You · Demo','Zoe · Demo','Amy · Demo','Bella · Demo','Aaron · Demo']
+        state.players=previewPlayers.slice(0,5).map((p,i)=>({...p,vrchatUserId:`usr_00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`,displayName:names[i],isFriend:i===1||i===2}))
+        state.auth.user={vrchatUserId:state.players[0].vrchatUserId,displayName:'You · Demo'}
+        state.recentPlayers=[state.players[3],state.players[1],state.players[2]].map((p,i)=>({...p,lastSeen:new Date(Date.now()-i*60000).toISOString()}))
+      },
       update: () => { state.updates={currentVersion:'0.1.0',availableVersion:'0.2.0',prompt:true,busy:false,enabled:true,message:'A new stable release is available.'} },
       avatar: url => { state.players[0].avatarUrl = url }, resetAvatar: () => { state.players[0].avatarUrl = firstAvatar }
     }

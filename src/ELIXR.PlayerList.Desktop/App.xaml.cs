@@ -50,11 +50,15 @@ public partial class App : Application
         // Public feeds never receive VRChat cookies or account credentials.
         _feedsHttp = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { UseCookies = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
         var tags = new GitHubTagService(_feedsHttp, _http, () => authentication.CurrentUser?.VrchatUserId);
-        var taggedPlayers = new TaggedPlayerListService(new LocalVrchatLogPlayerListService(), tags, () => authentication.CurrentUser is not null);
+        var recent = new RecentPlayersService(() => authentication.CurrentUser?.VrchatUserId, settingsPath is null ? null : settingsPath + ".history");
+        var roster = new LocalVrchatLogPlayerListService();
+        roster.Encountered += (_, player) => recent.Observe(player);
+        var taggedPlayers = new TaggedPlayerListService(roster, tags, () => authentication.CurrentUser is not null);
         var images = new VrchatProfileImageService(_http, _feedsHttp, () => authentication.CurrentUser?.VrchatUserId);
-        var players = new ProfileImagePlayerListService(taggedPlayers, images, () => authentication.CurrentUser is not null);
+        var players = new ProfileImagePlayerListService(taggedPlayers, images, () => authentication.CurrentUser is not null, () => authentication.CurrentUser?.VrchatUserId);
+        players.Changed += (_, current) => { foreach (var player in current.Players) recent.Observe(player); };
         StartupDiagnostics.SmokeCheckpoint("native-window");
-        MainWindow = new MainWindow(players, settings, authentication, tagFeeds: tags, imageCacheDirectory: images.CacheDirectory, updates: new GitHubUpdateService(_feedsHttp)) { UsageRegistration = settingsPath is null ? new UsageRegistrationService(_feedsHttp) : null, UserSearch = new VrchatUserSearchService(_http, () => authentication.CurrentUser?.VrchatUserId), SearchImages = images };
+        MainWindow = new MainWindow(players, settings, authentication, tagFeeds: tags, imageCacheDirectory: images.CacheDirectory, updates: new GitHubUpdateService(_feedsHttp)) { UsageRegistration = settingsPath is null ? new UsageRegistrationService(_feedsHttp) : null, UserSearch = new VrchatUserSearchService(_http, () => authentication.CurrentUser?.VrchatUserId), SearchImages = images, RecentPlayers = recent };
         MainWindow.Show();
     }
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] private static extern IntPtr FindWindow(string? className, string windowName);
